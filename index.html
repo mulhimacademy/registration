@@ -1336,114 +1336,87 @@
         // ============================================
         // كائن API للتعامل مع Google Sheets
         // ============================================
-// في النموذج الأمامي، عدّل كائن GoogleSheetsAPI
 const GoogleSheetsAPI = {
-  // اختبار الاتصال مع Google Sheets
+  // اختبار الاتصال
   async testConnection() {
     try {
       const url = `${GOOGLE_SCRIPT_URL}?action=test_connection&t=${Date.now()}`;
       
-      const response = await fetch(url, {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      const response = await fetch(url);
       const data = await response.json();
       return data;
     } catch (error) {
       console.error('Connection test failed:', error);
       return {
         success: false,
-        error: error.toString(),
-        message: 'فشل في الاتصال مع Google Sheets'
+        message: 'فشل في الاتصال'
       };
     }
   },
 
-  // إرسال تسجيل جديد (مُعدّل)
+  // إرسال التسجيل (الطريقة الصحيحة)
   async submitRegistration(formData) {
     try {
-      // تحضير البيانات للإرسال
+      // تحضير البيانات بشكل بسيط
+      const classesText = formData.classes.map(c => c.title).join('، ');
+      
       const payload = {
         action: 'submit_registration',
         student_name: formData.studentInfo.name,
         grade: formData.studentInfo.grade,
         phone: formData.studentInfo.phone,
         email: formData.studentInfo.email || '',
-        notes: formData.studentInfo.notes || '',
-        selected_classes: JSON.stringify(formData.classes), // تحويل المصفوفة إلى JSON string
+        classes: classesText,
+        class_count: formData.classes.length,
         total_amount: formData.totalAmount,
-        discount: formData.discount || 0,
         final_amount: formData.finalAmount,
-        payment_file: formData.payment?.file || '',
-        send_notification: true
+        discount: formData.discount || 0,
+        notes: formData.studentInfo.notes || '',
+        payment_file: formData.payment?.file || ''
       };
       
-      console.log('Payload being sent:', payload);
+      console.log('📤 إرسال البيانات:', payload);
       
-      // إرسال باستخدام POST
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json'
-        },
-        body: new URLSearchParams(payload).toString()
+      // استخدام FormData للإرسال
+      const form = new FormData();
+      Object.keys(payload).forEach(key => {
+        form.append(key, payload[key]);
       });
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      // الإرسال البسيط
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        body: new URLSearchParams(payload)
+      });
       
       const data = await response.json();
       return data;
       
     } catch (error) {
-      console.error('Error submitting to Google Sheets:', error);
+      console.error('Error submitting:', error);
       return {
         success: false,
-        error: error.toString(),
-        message: 'فشل في الإرسال إلى Google Sheets'
+        message: 'فشل في الإرسال'
       };
     }
   },
 
-  // التحقق من حالة التسجيل
+  // التحقق من التسجيل
   async checkRegistration(referenceId) {
     try {
-      const url = `${GOOGLE_SCRIPT_URL}?action=check_registration&reference_id=${referenceId}&t=${Date.now()}`;
+      const url = `${GOOGLE_SCRIPT_URL}?action=check_registration&reference_id=${referenceId}`;
       
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      const response = await fetch(url);
       const data = await response.json();
       return data;
-      
     } catch (error) {
-      console.error('Error checking registration:', error);
       return {
         success: false,
-        error: error.toString(),
-        message: 'فشل في التحقق من حالة التسجيل'
+        message: 'فشل في التحقق'
       };
     }
   }
+};
 };    // ============================================
         // دوال إدارة الخطوات
         // ============================================
@@ -2452,4 +2425,5 @@ const GoogleSheetsAPI = {
 </body>
 
 </html>
+
 
