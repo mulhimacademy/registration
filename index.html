@@ -1375,181 +1375,106 @@
             </p>
         </div>
     </div>
-
+    
     <script>
-        // ============================================
-        // إعدادات النظام
-        // ============================================
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw13GsF7Jshpy4-7earJ60qAdNVj0tS1dKN1R_fq0FkNjm3DnHBfI7OEYjL4SgiTX96/exec';
+        // ================ الإعدادات ================
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyoy_QUDf7cfQYnB2bFfh0BuhT6IZy1duSmrCqV4xEXTUDEn47gkYrCBtBWAOF5Ghfd/exec';
         
-        // المتغيرات العامة
+        // ================ المتغيرات ================
         let currentStep = 1;
         let selectedClasses = [];
         let uploadedFile = null;
-        let formData = {
-            studentInfo: {},
-            classes: [],
-            totalAmount: 0,
-            discount: 0,
-            finalAmount: 0,
-            offerType: 'لا يوجد'
-        };
-
-        // ============================================
-        // دوال إدارة الخطوات
-        // ============================================
-        function updateProgressBar() {
-            const progressBar = document.getElementById('progressBar');
-            const steps = document.querySelectorAll('.step');
+        let studentData = {};
+        
+        // ================ دوال الخطوات ================
+        function updateProgress() {
+            const bar = document.getElementById('progressBar');
+            const percent = ((currentStep - 1) / 3) * 100;
+            bar.style.width = percent + '%';
             
-            const progressPercent = ((currentStep - 1) / (steps.length - 1)) * 100;
-            progressBar.style.width = `${progressPercent}%`;
-            
-            steps.forEach(step => {
-                const stepNum = parseInt(step.dataset.step);
+            document.querySelectorAll('.step').forEach((step, index) => {
+                const num = index + 1;
                 step.classList.remove('active', 'completed');
-                
-                if (stepNum < currentStep) {
-                    step.classList.add('completed');
-                    step.querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
-                } else if (stepNum === currentStep) {
-                    step.classList.add('active');
-                }
+                if (num < currentStep) step.classList.add('completed');
+                else if (num === currentStep) step.classList.add('active');
             });
         }
-
-        function showStep(stepNumber) {
-            // إخفاء جميع الخطوات
-            document.querySelectorAll('.form-step').forEach(step => {
-                step.classList.remove('active');
+        
+        function showStep(step) {
+            document.querySelectorAll('.form-step').forEach(s => {
+                s.classList.remove('active');
             });
+            document.getElementById('step' + step).classList.add('active');
+            currentStep = step;
+            updateProgress();
             
-            // إظهار الخطوة المطلوبة
-            const stepElement = document.getElementById(`step${stepNumber}`);
-            if (stepElement) {
-                stepElement.classList.add('active');
-                currentStep = stepNumber;
-                updateProgressBar();
-                
-                // إذا كانت الخطوة الرابعة، عرض الملخص
-                if (stepNumber === 4) {
-                    fillSummary();
-                }
+            if (step === 4) {
+                updateSummary();
             }
         }
-
-        function nextStep(current) {
-            if (validateStep(current)) {
-                if (current === 1) {
-                    saveStudentInfo();
-                }
-                showStep(current + 1);
+        
+        function nextStep() {
+            if (validateStep(currentStep)) {
+                if (currentStep === 1) saveStep1();
+                showStep(currentStep + 1);
             }
         }
-
-        function prevStep(current) {
-            showStep(current - 1);
+        
+        function prevStep() {
+            showStep(currentStep - 1);
         }
-
-        // ============================================
-        // دوال التحقق من الصحة
-        // ============================================
+        
+        // ================ التحقق ================
         function validateStep(step) {
-            let isValid = true;
+            let valid = true;
             
-            // إخفاء جميع رسائل الخطأ
-            document.querySelectorAll('.error-message').forEach(error => {
-                error.style.display = 'none';
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.style.display = 'none';
             });
             
-            // إزالة تظليل الأخطاء
-            document.querySelectorAll('input, select, textarea').forEach(field => {
-                field.classList.remove('error');
-            });
-
             if (step === 1) {
                 const name = document.getElementById('studentName').value.trim();
                 const grade = document.getElementById('grade').value;
                 const phone = document.getElementById('phone').value.trim();
                 
                 if (!name) {
-                    showError('studentNameError', 'يرجى إدخال اسم الطالب');
-                    document.getElementById('studentName').classList.add('error');
-                    isValid = false;
+                    showError('studentNameError', 'مطلوب');
+                    valid = false;
                 }
-                
                 if (!grade) {
-                    showError('gradeError', 'يرجى اختيار الصف الدراسي');
-                    document.getElementById('grade').classList.add('error');
-                    isValid = false;
+                    showError('gradeError', 'مطلوب');
+                    valid = false;
                 }
-                
-                if (!phone) {
-                    showError('phoneError', 'يرجى إدخال رقم الهاتف');
-                    document.getElementById('phone').classList.add('error');
-                    isValid = false;
-                } else if (!/^\d{8,9}$/.test(phone)) {
-                    showError('phoneError', 'رقم الهاتف يجب أن يكون 8-9 أرقام');
-                    document.getElementById('phone').classList.add('error');
-                    isValid = false;
+                if (!phone || !/^\d{8,9}$/.test(phone)) {
+                    showError('phoneError', 'رقم غير صحيح');
+                    valid = false;
                 }
             }
             
-            if (step === 2) {
-                if (selectedClasses.length === 0) {
-                    showMessage('error', 'يرجى اختيار حصة واحدة على الأقل');
-                    isValid = false;
-                }
+            if (step === 2 && selectedClasses.length === 0) {
+                alert('يرجى اختيار حصة واحدة على الأقل');
+                valid = false;
             }
             
-            if (step === 3) {
-                if (!uploadedFile) {
-                    showError('receiptError', 'يرجى رفع صورة إشعار التحويل');
-                    isValid = false;
-                }
+            if (step === 3 && !uploadedFile) {
+                showError('receiptError', 'مطلوب');
+                valid = false;
             }
             
-            return isValid;
+            return valid;
         }
-
-        function showError(elementId, message) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                element.textContent = message;
-                element.style.display = 'block';
+        
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = msg;
+                el.style.display = 'block';
             }
         }
-
-        function showMessage(type, message) {
-            // إخفاء جميع الرسائل أولاً
-            ['successMessage', 'errorMessage', 'infoMessage'].forEach(id => {
-                const elem = document.getElementById(id);
-                if (elem) elem.style.display = 'none';
-            });
-            
-            const messageDiv = type === 'success' ? 'successMessage' : 
-                             type === 'error' ? 'errorMessage' : 'infoMessage';
-            const textDiv = type === 'success' ? 'successText' : 
-                           type === 'error' ? 'errorText' : 'infoText';
-            
-            const messageElement = document.getElementById(messageDiv);
-            const textElement = document.getElementById(textDiv);
-            
-            if (messageElement && textElement) {
-                textElement.textContent = message;
-                messageElement.style.display = 'block';
-                
-                setTimeout(() => {
-                    messageElement.style.display = 'none';
-                }, 5000);
-            }
-        }
-
-        // ============================================
-        // دوال معالجة البيانات
-        // ============================================
-        function saveStudentInfo() {
-            formData.studentInfo = {
+        
+        // ================ حفظ البيانات ================
+        function saveStep1() {
+            studentData = {
                 name: document.getElementById('studentName').value.trim(),
                 grade: document.getElementById('grade').value,
                 phone: document.getElementById('phone').value.trim(),
@@ -1557,129 +1482,80 @@
                 notes: document.getElementById('notes').value.trim()
             };
         }
-
-        function selectClass(className, price) {
-            const classElement = event.currentTarget;
-            const classIndex = selectedClasses.findIndex(c => c.name === className);
+        
+        function selectClass(name, price) {
+            const el = event.currentTarget;
+            const index = selectedClasses.findIndex(c => c.name === name);
             
-            if (classIndex === -1) {
-                selectedClasses.push({
-                    name: className,
-                    price: price,
-                    title: getClassTitle(className)
-                });
-                classElement.classList.add('selected');
+            if (index === -1) {
+                selectedClasses.push({name: name, price: price, title: getTitle(name)});
+                el.classList.add('selected');
             } else {
-                selectedClasses.splice(classIndex, 1);
-                classElement.classList.remove('selected');
+                selectedClasses.splice(index, 1);
+                el.classList.remove('selected');
             }
             
-            updateClassSummary();
+            updatePrice();
         }
-
-        function getClassTitle(className) {
+        
+        function getTitle(name) {
             const titles = {
                 'chemistry': 'الكيمياء',
                 'biology': 'الأحياء',
                 'english': 'الإنجليزية',
                 'physics': 'الفيزياء'
             };
-            return titles[className] || className;
+            return titles[name] || name;
         }
-
-        function updateClassSummary() {
+        
+        function updatePrice() {
             const count = selectedClasses.length;
             let total = count * 5;
             let discount = 0;
-            let offerType = 'لا يوجد';
+            let offer = 'لا يوجد';
             
-            // حساب العروض
             if (count === 4) {
-                discount = 5; // 4 حصص بـ 15 ريال بدلاً من 20
-                offerType = 'عرض 4 حصص (15 ريال)';
+                discount = 5;
+                offer = '4 حصص بـ 15 ريال';
             } else if (count === 2) {
-                discount = 2; // حصتين بـ 8 ريال بدلاً من 10
-                offerType = 'عرض حصتين (8 ريال)';
+                discount = 2;
+                offer = 'حصتين بـ 8 ريال';
             }
             
             const final = total - discount;
             
-            // تحديث العرض
             document.getElementById('selectedCount').textContent = count;
-            document.getElementById('calculatedAmount').textContent = `${total} ريال`;
-            document.getElementById('finalAmount').textContent = `${final} ريال`;
+            document.getElementById('calculatedAmount').textContent = total + ' ريال';
+            document.getElementById('finalAmount').textContent = final + ' ريال';
             
-            const discountInfo = document.getElementById('discountInfo');
-            const discountAmount = document.getElementById('discountAmount');
-            const offerApplied = document.getElementById('offerApplied');
-            const offerTypeElement = document.getElementById('offerType');
-            
+            const discountEl = document.getElementById('discountInfo');
             if (discount > 0) {
-                discountInfo.style.display = 'flex';
-                discountAmount.textContent = `-${discount} ريال`;
-                offerApplied.style.display = 'flex';
-                offerTypeElement.textContent = offerType;
+                discountEl.style.display = 'flex';
+                document.getElementById('discountAmount').textContent = '-' + discount + ' ريال';
             } else {
-                discountInfo.style.display = 'none';
-                offerApplied.style.display = 'none';
-            }
-            
-            // تحديث البيانات
-            formData.classes = selectedClasses;
-            formData.totalAmount = total;
-            formData.discount = discount;
-            formData.finalAmount = final;
-            formData.offerType = offerType;
-        }
-
-        function fillSummary() {
-            document.getElementById('summaryName').textContent = formData.studentInfo.name || '-';
-            document.getElementById('summaryGrade').textContent = formData.studentInfo.grade || '-';
-            document.getElementById('summaryPhone').textContent = formData.studentInfo.phone || '-';
-            document.getElementById('summaryEmail').textContent = formData.studentInfo.email || 'لم يتم إدخاله';
-            
-            if (formData.classes.length > 0) {
-                const classNames = formData.classes.map(c => c.title).join('، ');
-                document.getElementById('summaryClasses').textContent = classNames;
-                document.getElementById('summaryCount').textContent = formData.classes.length;
-            }
-            
-            document.getElementById('summaryTotal').textContent = `${formData.totalAmount || 0} ريال`;
-            document.getElementById('summaryFinal').textContent = `${formData.finalAmount || 0} ريال`;
-            
-            const summaryDiscount = document.getElementById('summaryDiscount');
-            const summaryDiscountAmount = document.getElementById('summaryDiscountAmount');
-            
-            if (formData.discount > 0) {
-                summaryDiscount.style.display = 'flex';
-                summaryDiscountAmount.textContent = `-${formData.discount} ريال`;
-            } else {
-                summaryDiscount.style.display = 'none';
+                discountEl.style.display = 'none';
             }
         }
-
-        // ============================================
-        // دوال رفع الملفات
-        // ============================================
+        
+        // ================ رفع الملف ================
         function handleFileUpload(files) {
             if (files.length > 0) {
                 const file = files[0];
                 
                 if (file.size > 5 * 1024 * 1024) {
-                    showError('receiptError', 'حجم الملف يجب أن يكون أقل من 5MB');
+                    alert('الملف كبير جداً (الحد 5MB)');
                     return;
                 }
                 
-                const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-                if (!allowedTypes.includes(file.type)) {
-                    showError('receiptError', 'نوع الملف غير مدعوم. يرجى رفع صورة أو PDF');
+                if (!file.type.match(/image\/(jpeg|png|jpg)|application\/pdf/)) {
+                    alert('نوع الملف غير مدعوم');
                     return;
                 }
                 
                 uploadedFile = file;
                 
-                const previewDiv = document.getElementById('filePreview');
-                previewDiv.innerHTML = `
+                const preview = document.getElementById('filePreview');
+                preview.innerHTML = `
                     <div class="file-preview">
                         <div class="file-info">
                             <div class="file-icon">
@@ -1690,268 +1566,256 @@
                                 <div class="file-size">${(file.size / 1024).toFixed(1)} كيلوبايت</div>
                             </div>
                         </div>
-                        <button class="file-remove" onclick="removeUploadedFile()">
+                        <button class="file-remove" onclick="removeFile()">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 `;
-                previewDiv.style.display = 'block';
-                
-                document.getElementById('receiptError').style.display = 'none';
+                preview.style.display = 'block';
             }
         }
-
-        function removeUploadedFile() {
+        
+        function removeFile() {
             uploadedFile = null;
             document.getElementById('receiptFile').value = '';
             document.getElementById('filePreview').style.display = 'none';
         }
-
-        // ============================================
-        // Google Sheets API
-        // ============================================
-        const GoogleSheetsAPI = {
-            async testConnection() {
-                try {
-                    showMessage('info', 'جاري اختبار الاتصال مع Google Sheets...');
-                    
-                    const url = `${GOOGLE_SCRIPT_URL}?action=test_connection&t=${Date.now()}`;
-                    console.log('🔗 رابط الاتصال:', url);
-                    
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        showMessage('success', '✅ متصل بـ Google Sheets بنجاح!');
-                        console.log('✅ اتصال ناجح:', data);
-                    } else {
-                        showMessage('warning', '⚠️ ' + (data.message || 'تم الاتصال ولكن هناك مشكلة'));
-                        console.warn('⚠️ تحذير:', data);
-                    }
-                    return data;
-                } catch (error) {
-                    console.error('❌ فشل الاتصال:', error);
-                    showMessage('error', '❌ فشل في الاتصال مع Google Sheets');
-                    return {
-                        success: false,
-                        message: 'فشل في الاتصال: ' + error.message
-                    };
-                }
-            },
-
-            async submitRegistration(formData) {
-                try {
-                    // تحضير البيانات
-                    const classesText = formData.classes.map(c => c.title).join('، ');
-                    
-                    const payload = {
-                        action: 'submit_registration',
-                        student_name: formData.studentInfo.name,
-                        grade: formData.studentInfo.grade,
-                        phone: formData.studentInfo.phone,
-                        email: formData.studentInfo.email || '',
-                        classes: classesText,
-                        class_count: formData.classes.length,
-                        total_amount: formData.totalAmount,
-                        final_amount: formData.finalAmount,
-                        discount: formData.discount || 0,
-                        offer_type: formData.offerType,
-                        notes: formData.studentInfo.notes || '',
-                        payment_file: uploadedFile ? uploadedFile.name : '',
-                        registration_date: new Date().toLocaleDateString('ar-OM')
-                    };
-                    
-                    console.log('📤 إرسال البيانات:', payload);
-                    
-                    // إرسال البيانات
-                    const response = await fetch(GOOGLE_SCRIPT_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded',
-                        },
-                        body: new URLSearchParams(payload)
-                    });
-                    
-                    const data = await response.json();
-                    return data;
-                    
-                } catch (error) {
-                    console.error('❌ خطأ في الإرسال:', error);
-                    return {
-                        success: false,
-                        message: 'فشل في الإرسال: ' + error.message
-                    };
-                }
-            },
-
-            async checkRegistration(referenceId) {
-                try {
-                    const url = `${GOOGLE_SCRIPT_URL}?action=check_registration&reference_id=${referenceId}`;
-                    const response = await fetch(url);
-                    return await response.json();
-                } catch (error) {
-                    return {
-                        success: false,
-                        message: 'فشل في التحقق'
-                    };
-                }
+        
+        // ================ الملخص ================
+        function updateSummary() {
+            document.getElementById('summaryName').textContent = studentData.name || '-';
+            document.getElementById('summaryGrade').textContent = studentData.grade || '-';
+            document.getElementById('summaryPhone').textContent = studentData.phone || '-';
+            document.getElementById('summaryEmail').textContent = studentData.email || 'لم يتم إدخاله';
+            
+            if (selectedClasses.length > 0) {
+                const names = selectedClasses.map(c => c.title).join('، ');
+                document.getElementById('summaryClasses').textContent = names;
+                document.getElementById('summaryCount').textContent = selectedClasses.length;
             }
-        };
-
-        // ============================================
-        // دوال الاختبار والإرسال
-        // ============================================
-        async function testGoogleSheetsConnection() {
-            await GoogleSheetsAPI.testConnection();
+            
+            const count = selectedClasses.length;
+            let total = count * 5;
+            let discount = 0;
+            if (count === 4) discount = 5;
+            else if (count === 2) discount = 2;
+            const final = total - discount;
+            
+            document.getElementById('summaryTotal').textContent = total + ' ريال';
+            document.getElementById('summaryFinal').textContent = final + ' ريال';
+            
+            const discountEl = document.getElementById('summaryDiscount');
+            if (discount > 0) {
+                discountEl.style.display = 'flex';
+                document.getElementById('summaryDiscountAmount').textContent = '-' + discount + ' ريال';
+            }
         }
-
+        
+        // ================ API مبسط ================
+        async function testConnection() {
+            try {
+                showMessage('info', 'جاري اختبار الاتصال...');
+                
+                const url = GOOGLE_SCRIPT_URL + '?action=test&t=' + Date.now();
+                console.log('Testing:', url);
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('success', '✅ اتصال ناجح مع Google Sheets');
+                    console.log('Success:', data);
+                    return data;
+                } else {
+                    showMessage('error', '❌ فشل: ' + (data.message || ''));
+                    return data;
+                }
+            } catch (error) {
+                console.error('Connection failed:', error);
+                showMessage('error', '❌ فشل في الاتصال');
+                return {success: false, error: error.message};
+            }
+        }
+        
         async function submitRegistration() {
-            // التحقق من الموافقة على الشروط
             if (!document.getElementById('agreeTerms').checked) {
-                showError('termsError', 'يجب الموافقة على الشروط والأحكام');
+                alert('يرجى الموافقة على الشروط');
                 return;
             }
             
-            // التحقق من اكتمال البيانات
-            if (!formData.studentInfo.name || formData.classes.length === 0 || !uploadedFile) {
-                showMessage('error', 'يرجى التأكد من اكتمال جميع البيانات');
-                return;
+            const count = selectedClasses.length;
+            let total = count * 5;
+            let discount = 0;
+            let offer = 'لا يوجد';
+            
+            if (count === 4) {
+                discount = 5;
+                offer = '4 حصص بـ 15 ريال';
+            } else if (count === 2) {
+                discount = 2;
+                offer = 'حصتين بـ 8 ريال';
             }
             
-            // إظهار محمل التحميل
+            const final = total - discount;
+            
+            const data = {
+                action: 'submit',
+                name: studentData.name,
+                grade: studentData.grade,
+                phone: studentData.phone,
+                email: studentData.email,
+                classes: selectedClasses.map(c => c.title).join('، '),
+                count: count.toString(),
+                total: total.toString(),
+                discount: discount.toString(),
+                final: final.toString(),
+                offer: offer,
+                file: uploadedFile ? uploadedFile.name : '',
+                notes: studentData.notes
+            };
+            
+            console.log('Submitting:', data);
+            
             document.getElementById('loader').style.display = 'block';
             document.getElementById('submitBtn').disabled = true;
-            document.getElementById('loaderText').textContent = 'جاري إرسال الطلب إلى Google Sheets...';
             
             try {
-                // إرسال البيانات
-                const result = await GoogleSheetsAPI.submitRegistration(formData);
+                // تحويل البيانات إلى query string
+                const params = new URLSearchParams();
+                Object.keys(data).forEach(key => {
+                    params.append(key, data[key]);
+                });
+                
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: params.toString()
+                });
+                
+                const result = await response.json();
                 
                 if (result.success) {
-                    // عرض النجاح
-                    document.getElementById('summaryBeforeSubmit').style.display = 'none';
-                    
-                    document.getElementById('registrationResult').innerHTML = `
-                        <div class="success-message">
-                            <div class="success-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <h3>تم التسجيل بنجاح! 🎉</h3>
-                            <p style="color: var(--success);">
-                                ✅ تم حفظ البيانات في Google Sheets بنجاح
-                            </p>
-                            <div class="reference-id">
-                                <span>رقم المرجع:</span>
-                                <strong>${result.reference_id || 'MUL-' + Date.now()}</strong>
-                            </div>
-                            <p style="color: var(--text-light); margin: 15px 0;">
-                                <i class="fas fa-check-circle" style="color: var(--success);"></i> تم إرسال إشعار للمسؤولين<br>
-                                <i class="fas fa-check-circle" style="color: var(--success);"></i> ستصلك رسالة تأكيد عبر الواتساب<br>
-                                <i class="fas fa-check-circle" style="color: var(--success);"></i> رقم التحويل: <strong>92147179</strong>
-                            </p>
-                            <div class="action-buttons">
-                                <button onclick="resetForm()" class="btn btn-success">
-                                    <i class="fas fa-plus"></i> تسجيل جديد
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    
-                    document.getElementById('registrationResult').style.display = 'block';
-                    
+                    showSuccess(result.ref);
                 } else {
-                    showMessage('error', '❌ فشل في التسجيل: ' + result.message);
+                    alert('فشل في الإرسال: ' + (result.message || ''));
                     document.getElementById('submitBtn').disabled = false;
                 }
-                
             } catch (error) {
-                console.error('Registration error:', error);
-                showMessage('error', `❌ خطأ في التسجيل: ${error.message}`);
+                console.error('Submit error:', error);
+                alert('خطأ في الإرسال: ' + error.message);
                 document.getElementById('submitBtn').disabled = false;
             } finally {
                 document.getElementById('loader').style.display = 'none';
             }
         }
-
-        // ============================================
-        // إعادة تعيين النموذج
-        // ============================================
+        
+        function showSuccess(refId) {
+            document.getElementById('summaryBeforeSubmit').style.display = 'none';
+            
+            document.getElementById('registrationResult').innerHTML = `
+                <div class="success-message">
+                    <div class="success-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3>🎉 تم التسجيل بنجاح!</h3>
+                    <div class="reference-id">
+                        <span>رقم المرجع:</span>
+                        <strong>${refId}</strong>
+                    </div>
+                    <p style="color: var(--text-light); margin: 20px 0;">
+                        ✅ تم حفظ البيانات في Google Sheets<br>
+                        📧 تم إرسال إشعار للمسؤول<br>
+                        📱 سيتم التواصل معك عبر الواتساب
+                    </p>
+                    <button onclick="resetForm()" class="btn btn-success" style="margin-top: 20px;">
+                        <i class="fas fa-plus"></i> تسجيل جديد
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('registrationResult').style.display = 'block';
+        }
+        
+        // ================ مساعدة ================
+        function showMessage(type, text) {
+            const types = {
+                'success': {el: 'successMessage', txt: 'successText'},
+                'error': {el: 'errorMessage', txt: 'errorText'},
+                'info': {el: 'infoMessage', txt: 'infoText'}
+            };
+            
+            const msg = types[type];
+            if (msg) {
+                document.getElementById(msg.el).style.display = 'block';
+                document.getElementById(msg.txt).textContent = text;
+                
+                setTimeout(() => {
+                    document.getElementById(msg.el).style.display = 'none';
+                }, 5000);
+            }
+        }
+        
         function resetForm() {
-            // إعادة تعيين الحقول
             document.getElementById('basicInfoForm').reset();
             selectedClasses = [];
             uploadedFile = null;
-            formData = {
-                studentInfo: {},
-                classes: [],
-                totalAmount: 0,
-                discount: 0,
-                finalAmount: 0,
-                offerType: 'لا يوجد'
-            };
+            studentData = {};
             
-            // إزالة اختيار الحصص
-            document.querySelectorAll('.class-item.selected').forEach(item => {
-                item.classList.remove('selected');
+            document.querySelectorAll('.class-item.selected').forEach(el => {
+                el.classList.remove('selected');
             });
             
-            // إعادة تعيين الملخص
-            updateClassSummary();
             document.getElementById('filePreview').style.display = 'none';
             document.getElementById('agreeTerms').checked = false;
             
-            // إعادة العرض
+            updatePrice();
+            
             document.getElementById('summaryBeforeSubmit').style.display = 'block';
             document.getElementById('registrationResult').style.display = 'none';
-            document.getElementById('registrationResult').innerHTML = '';
             
-            // العودة للخطوة الأولى
             showStep(1);
-            
-            // إعادة تمكين الزر
             document.getElementById('submitBtn').disabled = false;
             
-            showMessage('success', '✅ تم إعادة تعيين النموذج بنجاح');
+            showMessage('success', '✅ تم إعادة تعيين النموذج');
         }
-
-        // ============================================
-        // تهيئة الصفحة
-        // ============================================
+        
+        // ================ التهيئة ================
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 صفحة التسجيل جاهزة');
+            console.log('Page loaded');
+            updateProgress();
             
-            // تحديث شريط التقدم
-            updateProgressBar();
+            // اختبار الاتصال بعد 2 ثانية
+            setTimeout(testConnection, 2000);
             
-            // إعداد سحب وإفلات الملفات
+            // إعداد سحب الملفات
             const uploadArea = document.getElementById('uploadArea');
             if (uploadArea) {
-                uploadArea.addEventListener('dragover', function(e) {
+                uploadArea.addEventListener('dragover', e => {
                     e.preventDefault();
-                    this.classList.add('dragover');
+                    uploadArea.classList.add('dragover');
                 });
-
-                uploadArea.addEventListener('dragleave', function(e) {
+                
+                uploadArea.addEventListener('dragleave', e => {
                     e.preventDefault();
-                    this.classList.remove('dragover');
+                    uploadArea.classList.remove('dragover');
                 });
-
-                uploadArea.addEventListener('drop', function(e) {
+                
+                uploadArea.addEventListener('drop', e => {
                     e.preventDefault();
-                    this.classList.remove('dragover');
-                    
+                    uploadArea.classList.remove('dragover');
                     if (e.dataTransfer.files.length) {
                         handleFileUpload(e.dataTransfer.files);
                     }
                 });
             }
-            
-            // اختبار الاتصال التلقائي بعد 1 ثانية
-            setTimeout(async () => {
-                await testGoogleSheetsConnection();
-            }, 1000);
         });
+        
+        // ================ دالات الواجهة ================
+        function testGoogleSheetsConnection() {
+            testConnection();
+        }
     </script>
 </body>
 </html>
-
