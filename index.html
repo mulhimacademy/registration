@@ -1336,141 +1336,115 @@
         // ============================================
         // كائن API للتعامل مع Google Sheets
         // ============================================
-     // في النموذج الأمامي، عدّل دالة testConnection في كائن GoogleSheetsAPI
+// في النموذج الأمامي، عدّل كائن GoogleSheetsAPI
 const GoogleSheetsAPI = {
-    // اختبار الاتصال مع Google Sheets
-    async testConnection() {
-        try {
-            // استخدم هذه الطريقة لتجنب مشاكل CORS
-            const url = `${GOOGLE_SCRIPT_URL}?action=test_connection&t=${Date.now()}`;
-            
-            // استخدم fetch مع mode 'cors' و headers بسيطة
-            const response = await fetch(url, {
-                method: 'GET',
-                mode: 'cors',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error('Connection test failed:', error);
-            
-            // محاولة بديلة باستخدام JSONP
-            return new Promise((resolve) => {
-                const callbackName = 'jsonp_callback_' + Date.now();
-                window[callbackName] = function(data) {
-                    delete window[callbackName];
-                    document.body.removeChild(script);
-                    resolve(data);
-                };
-                
-                const script = document.createElement('script');
-                script.src = `${GOOGLE_SCRIPT_URL}?action=test_connection&callback=${callbackName}&t=${Date.now()}`;
-                document.body.appendChild(script);
-                
-                // إذا فشل JSONP
-                setTimeout(() => {
-                    if (window[callbackName]) {
-                        delete window[callbackName];
-                        document.body.removeChild(script);
-                        resolve({
-                            success: false,
-                            error: 'Connection timeout',
-                            message: 'فشل في الاتصال مع Google Sheets'
-                        });
-                    }
-                }, 5000);
-            });
+  // اختبار الاتصال مع Google Sheets
+  async testConnection() {
+    try {
+      const url = `${GOOGLE_SCRIPT_URL}?action=test_connection&t=${Date.now()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
         }
-    },
-
-    // إرسال تسجيل جديد
-    async submitRegistration(formData) {
-        try {
-            // استخدم FormData للإرسال
-            const formPayload = new FormData();
-            
-            // إضافة البيانات كـ JSON string
-            const payload = {
-                action: 'submit_registration',
-                student_name: formData.student_name,
-                grade: formData.grade,
-                phone: formData.phone,
-                email: formData.email || '',
-                notes: formData.notes || '',
-                selected_classes: formData.selected_classes,
-                total_amount: formData.total_amount,
-                discount: formData.discount || 0,
-                final_amount: formData.final_amount,
-                payment_file: formData.payment_file || '',
-                send_notification: true
-            };
-            
-            formPayload.append('data', JSON.stringify(payload));
-            
-            // إرسال باستخدام fetch مع mode 'no-cors' للسماح بالإرسال
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                body: formPayload,
-                mode: 'no-cors' // هذا مهم لتجنب مشاكل CORS
-            });
-            
-            // بما أننا نستخدم no-cors، لن نتمكن من قراءة الرد
-            // لذا نعود بنجاح افتراضي
-            return {
-                success: true,
-                message: 'تم إرسال البيانات إلى Google Sheets',
-                reference_id: 'MUL-GS-' + Date.now() + '-' + Math.floor(Math.random() * 1000)
-            };
-            
-        } catch (error) {
-            console.error('Error submitting to Google Sheets:', error);
-            return {
-                success: false,
-                error: error.toString(),
-                message: 'فشل في الإرسال إلى Google Sheets'
-            };
-        }
-    },
-
-    // التحقق من حالة التسجيل
-    async checkRegistration(referenceId) {
-        try {
-            const url = `${GOOGLE_SCRIPT_URL}?action=check_registration&reference_id=${referenceId}&t=${Date.now()}`;
-            
-            const response = await fetch(url, {
-                method: 'GET',
-                mode: 'cors',
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const data = await response.json();
-            return data;
-            
-        } catch (error) {
-            console.error('Error checking registration:', error);
-            return {
-                success: false,
-                error: error.toString(),
-                message: 'فشل في التحقق من حالة التسجيل'
-            };
-        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return {
+        success: false,
+        error: error.toString(),
+        message: 'فشل في الاتصال مع Google Sheets'
+      };
     }
-};
-        // ============================================
+  },
+
+  // إرسال تسجيل جديد (مُعدّل)
+  async submitRegistration(formData) {
+    try {
+      // تحضير البيانات للإرسال
+      const payload = {
+        action: 'submit_registration',
+        student_name: formData.studentInfo.name,
+        grade: formData.studentInfo.grade,
+        phone: formData.studentInfo.phone,
+        email: formData.studentInfo.email || '',
+        notes: formData.studentInfo.notes || '',
+        selected_classes: JSON.stringify(formData.classes), // تحويل المصفوفة إلى JSON string
+        total_amount: formData.totalAmount,
+        discount: formData.discount || 0,
+        final_amount: formData.finalAmount,
+        payment_file: formData.payment?.file || '',
+        send_notification: true
+      };
+      
+      console.log('Payload being sent:', payload);
+      
+      // إرسال باستخدام POST
+      const response = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        body: new URLSearchParams(payload).toString()
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Error submitting to Google Sheets:', error);
+      return {
+        success: false,
+        error: error.toString(),
+        message: 'فشل في الإرسال إلى Google Sheets'
+      };
+    }
+  },
+
+  // التحقق من حالة التسجيل
+  async checkRegistration(referenceId) {
+    try {
+      const url = `${GOOGLE_SCRIPT_URL}?action=check_registration&reference_id=${referenceId}&t=${Date.now()}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+      
+    } catch (error) {
+      console.error('Error checking registration:', error);
+      return {
+        success: false,
+        error: error.toString(),
+        message: 'فشل في التحقق من حالة التسجيل'
+      };
+    }
+  }
+};    // ============================================
         // دوال إدارة الخطوات
         // ============================================
         function updateProgressBar() {
@@ -2478,3 +2452,4 @@ const GoogleSheetsAPI = {
 </body>
 
 </html>
+
